@@ -8,8 +8,23 @@
 *.so
 *.dylib
 
+# Editor files
+.idea/
+*.iml
+*.swp
+*.log
+
+# Mac
+.DS_Store
+
+# VS code
+.vscode
+
+vendor
+
 # Test binary, built with `go test -c`
 *.test
+profile.cov
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out

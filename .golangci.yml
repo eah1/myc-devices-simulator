@@ -1,0 +1,110 @@
+run:
+  timeout: 5m
+  tests: false
+  skip-dirs:
+    - vendor
+    - foundation/test
+    - foundation/docker
+  allow-parallel-runners: true
+
+linters-settings:
+  ireturn:
+    reject:
+      - Transaction
+  dupl:
+    threshold: 200
+  funlen:
+    lines: 85
+  tagliatelle:
+    # Check the struck tag name case.
+    case:
+      # Use the struct field name to check the name of the struct tag.
+      # Default: false
+      use-field-name: true
+      # `camel` is used for `json` and `yaml` (can be overridden)
+      # Default: {}
+      rules:
+        json: camel
+linters:
+  enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - cyclop
+    - dogsled
+    - durationcheck
+    - errcheck
+    - errname
+    - exhaustive
+    - exportloopref
+    - funlen
+    - gochecknoinits
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - gofmt
+    - gofumpt
+    - goheader
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - importas
+    - ineffassign
+    - ireturn
+    - lll
+    - makezero
+    - misspell
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnil
+    - nlreturn
+    - noctx
+    - nolintlint
+    - paralleltest
+    - prealloc
+    - predeclared
+    - promlinter
+    - staticcheck
+    - stylecheck
+    - tenv
+    - testpackage
+    - tparallel
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+    - wsl
+    - thelper
+    - errorlint
+    - forcetypeassert
+    - forbidigo
+    - tagliatelle
+    - goerr113
+    - dupl
+    - gochecknoglobals
+    - wrapcheck
+    - gomnd
+  disable:
+    - revive
+    - gci
+    - depguard
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - gochecknoglobals
+        - funlen
+        - lll
+        - dupl
+        - gofumpt
+        - goerr113
+        - gosec
