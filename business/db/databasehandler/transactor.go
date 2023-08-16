@@ -1,3 +1,4 @@
+// Package databasehandler low level database access including transaction through *sql.Tx or *sql.DB
 package databasehandler
 
 import (

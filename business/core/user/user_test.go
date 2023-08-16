@@ -38,7 +38,7 @@ func TestCoreUser_Create(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		storeUser user.UserStore
+		storeUser user.StoreUser
 		init      func(store *mocks.StoreUser)
 		user      coremodel.User
 		isError   bool
@@ -106,7 +106,7 @@ func TestCoreUser_Create(t *testing.T) {
 		},
 		{
 			name:      "mock error in row affected",
-			storeUser: user.UserStore{},
+			storeUser: user.StoreUser{},
 			init: func(store *mocks.StoreUser) {
 				store.On("InsertUser", context.TODO(), mock.AnythingOfType("user.User")).Return(errors.ErrRowAffected)
 			},
@@ -130,14 +130,14 @@ func TestCoreUser_Create(t *testing.T) {
 
 			var coreUser coremodel.CoreUser
 
-			if tt.storeUser == (user.UserStore{}) {
+			if tt.storeUser == (user.StoreUser{}) {
 				storeUser := mocks.NewStoreUser(t)
 				tt.init(storeUser)
 
 				coreUser = coremodel.NewCoreUser(storeUser)
 			}
 
-			if tt.storeUser != (user.UserStore{}) {
+			if tt.storeUser != (user.StoreUser{}) {
 				coreUser = coremodel.NewCoreUser(&tt.storeUser)
 			}
 

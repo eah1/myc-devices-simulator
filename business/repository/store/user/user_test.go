@@ -136,7 +136,7 @@ func TestUserStore_InsertUser(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			var storeUser user.UserStore
+			var storeUser user.StoreUser
 
 			if test.database == nil {
 				database := mocks.NewSQLGbc(t)
