@@ -1,3 +1,4 @@
+// Package user call database layer.
 package user
 
 import (
@@ -13,19 +14,22 @@ import (
 const InsertUser = "INSERT INTO users (id, first_name, last_name, email, password, language, company) VALUES " +
 	"($1, $2, $3, $4, $5, $6, $7)"
 
-type UserStore struct {
+// StoreUser store user to call database.
+type StoreUser struct {
 	db  db.SQLGbc
 	log *zap.SugaredLogger
 }
 
-func NewUserStore(database db.SQLGbc, log *zap.SugaredLogger) UserStore {
-	return UserStore{
+// NewUserStore construct a store user group.
+func NewUserStore(database db.SQLGbc, log *zap.SugaredLogger) StoreUser {
+	return StoreUser{
 		db:  database,
 		log: log,
 	}
 }
 
-func (store *UserStore) InsertUser(_ context.Context, user User) error {
+// InsertUser insert new user into database.
+func (store *StoreUser) InsertUser(_ context.Context, user User) error {
 	prepare, err := store.db.Prepare(InsertUser)
 	if err != nil {
 		return fmt.Errorf("store.user.InsertUser.Prepare: %w", errors.WrapperError(store.log, err))

@@ -1,3 +1,4 @@
+// Package user call database layer.
 package user
 
 import "time"

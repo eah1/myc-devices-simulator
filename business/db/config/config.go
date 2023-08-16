@@ -1,4 +1,4 @@
-// Package config provides support for access the database connection.
+// Package config.go provides support for access the database connection.
 package config
 
 import (
