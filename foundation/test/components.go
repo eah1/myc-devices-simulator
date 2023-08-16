@@ -56,7 +56,7 @@ func InitDockerContainerDatabase(t *testing.T, testName string) *docker.Containe
 	return container
 }
 
-// InitConfig create a config env.
+// InitConfig create a config.go env.
 func InitConfig(host string) config.Config {
 	configENV := new(config.Config)
 	configENV.DBPostgres = "postgres://postgres:postgres@" + host + "/postgres?sslmode=disable"

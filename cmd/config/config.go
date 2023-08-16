@@ -1,4 +1,4 @@
-// Package config content struct Config. The function will parse the environment variables to run the service.
+// Package config.go content struct Config. The function will parse the environment variables to run the service.
 package config
 
 type Config struct {
