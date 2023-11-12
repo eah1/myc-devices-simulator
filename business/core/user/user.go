@@ -41,7 +41,7 @@ func (core *CoreUser) Create(ctx context.Context, user User) (User, error) {
 		return User{}, fmt.Errorf("core.user.Create.generatePasswordHash: %w", err)
 	}
 
-	user.ID = uuid.NewString()
+	user.ID = uuid.New()
 
 	if err := core.storeUser.InsertUser(ctx, user.ToStore()); err != nil {
 		return User{}, fmt.Errorf("core.user.Create.InsertUser: %w", err)

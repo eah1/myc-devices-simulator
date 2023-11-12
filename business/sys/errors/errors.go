@@ -4,10 +4,11 @@ package errors
 import "errors"
 
 var (
-	ErrPsql           = errors.New("error database")
-	ErrPsqlConnection = errors.New("errors connection database")
+	ErrPsql            = errors.New("error database")
+	ErrPsqlConnection  = errors.New("errors connection database")
+	ErrPsqlPrepare     = errors.New("prepare syntax error")
+	ErrPsqlRowAffected = errors.New("no rows affected")
 
-	ErrRowAffected               = errors.New("no rows affected")
 	ErrGeneratePassHash          = errors.New("generate password hash failed")
 	ErrValidatorInvalidCoreModel = errors.New("invalid core model")
 )
