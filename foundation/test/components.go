@@ -2,9 +2,12 @@ package test
 
 import (
 	"database/sql"
+	"github.com/jhillyerd/enmime"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"myc-devices-simulator/business/db"
 	dbconfig "myc-devices-simulator/business/db/config"
+	emailsender "myc-devices-simulator/business/sys/email_sender"
 	"myc-devices-simulator/business/sys/logger"
 	"myc-devices-simulator/cmd/config"
 	"myc-devices-simulator/foundation/docker"
@@ -63,6 +66,12 @@ func InitConfig(host string) config.Config {
 	configENV.DBMaxOpenConns = 25
 	configENV.DBMaxIdleConns = 25
 	configENV.DBLogger = false
+	configENV.Environment = "local-test"
+	configENV.PostmarkToken = "fakeMailerToken"
+	configENV.SMTPFrom = "no-reply@circutor.com"
+	configENV.SMTPHost = "localhost"
+	configENV.SMTPPort = "25"
+	configENV.SMTPNetwork = "tcp"
 
 	return *configENV
 }
@@ -106,4 +115,14 @@ func InitDatabase(t *testing.T, config config.Config, log *zap.SugaredLogger) *s
 	}
 
 	return database
+}
+
+// InitEmailConfig create email configuration.
+func InitEmailConfig(t *testing.T, config config.Config) *enmime.SMTPSender {
+	t.Helper()
+
+	emailSender, err := emailsender.InnitEmailConfig(config)
+	assert.Equal(t, nil, err)
+
+	return emailSender
 }

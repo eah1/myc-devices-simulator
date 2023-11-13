@@ -6,4 +6,10 @@ type Config struct {
 	DBMaxIdleConns int
 	DBMaxOpenConns int
 	DBLogger       bool
+	Environment    string
+	PostmarkToken  string
+	SMTPHost       string
+	SMTPPort       string
+	SMTPNetwork    string
+	SMTPFrom       string
 }
