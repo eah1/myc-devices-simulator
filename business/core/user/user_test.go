@@ -2,18 +2,22 @@ package user_test
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	coremodel "myc-devices-simulator/business/core/user"
+	"errors"
+	"fmt"
+	"myc-devices-simulator/business/core/user"
 	"myc-devices-simulator/business/core/user/mocks"
 	"myc-devices-simulator/business/db/databasehandler"
-	"myc-devices-simulator/business/repository/store/user"
-	"myc-devices-simulator/business/sys/errors"
+	store "myc-devices-simulator/business/repository/store/user"
+	errorssys "myc-devices-simulator/business/sys/errors"
 	"myc-devices-simulator/foundation/docker"
 	"myc-devices-simulator/foundation/test"
 	"os"
-	"syreclabs.com/go/faker"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"syreclabs.com/go/faker"
 )
 
 func TestCoreUser_Create(t *testing.T) {
@@ -31,22 +35,19 @@ func TestCoreUser_Create(t *testing.T) {
 	database := test.InitDatabase(t, test.InitConfig(container.Host), newLog)
 
 	// Create a user store.
-	storeUser := user.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog)
+	storeUser := store.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog)
 
 	// Create a user core.
-	coreUser := coremodel.NewCoreUser(&storeUser)
+	coreUser := user.NewCoreUser(&storeUser)
 
 	tests := []struct {
-		name      string
-		storeUser user.StoreUser
-		init      func(store *mocks.StoreUser)
-		user      coremodel.User
-		isError   bool
+		name          string
+		user          user.User
+		expectedError error
 	}{
 		{
-			name:      "success creating user",
-			storeUser: user.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog),
-			user: coremodel.User{
+			name: testName + " success creating user",
+			user: user.User{
 				FirstName: faker.Name().FirstName() + "_" + testName,
 				LastName:  faker.Name().LastName() + "_" + testName,
 				Email:     faker.Internet().Email(),
@@ -54,13 +55,12 @@ func TestCoreUser_Create(t *testing.T) {
 				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
 				Company:   faker.Company().Name(),
 			},
-			isError: false,
+			expectedError: nil,
 		},
 		{
-			name:      "duplicate create user",
-			storeUser: user.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog),
-			user: func(t *testing.T) coremodel.User {
-				newUser := coremodel.User{
+			name: testName + " duplicate create user",
+			user: func(t *testing.T) user.User {
+				newUser := user.User{
 					FirstName: faker.Name().FirstName() + "_" + testName,
 					LastName:  faker.Name().LastName() + "_" + testName,
 					Email:     faker.Internet().Email(),
@@ -69,19 +69,21 @@ func TestCoreUser_Create(t *testing.T) {
 					Company:   faker.Company().Name(),
 				}
 
-				t.Run("duplicate create user --> success creating user", func(t *testing.T) {
-					_, err := coreUser.Create(context.Background(), newUser)
+				t.Run(testName+" duplicate create user --> success creating user", func(t *testing.T) {
+					userModel, err := coreUser.Create(context.TODO(), newUser)
 					assert.Equal(t, nil, err)
+					assert.NotEmpty(t, userModel)
 				})
+
+				fmt.Println(newUser)
 
 				return newUser
 			}(t),
-			isError: true,
+			expectedError: errorssys.ErrUserDupKeyEmail,
 		},
 		{
-			name:      "error creating user invalid language",
-			storeUser: user.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog),
-			user: coremodel.User{
+			name: testName + " error creating user invalid language",
+			user: user.User{
 				FirstName: faker.Name().FirstName() + "_" + testName,
 				LastName:  faker.Name().LastName() + "_" + testName,
 				Email:     faker.Internet().Email(),
@@ -89,12 +91,11 @@ func TestCoreUser_Create(t *testing.T) {
 				Language:  faker.RandomString(2),
 				Company:   faker.Company().Name(),
 			},
-			isError: true,
+			expectedError: errorssys.ErrValidatorInvalidCoreModel,
 		},
 		{
-			name:      "error creating user invalid field null",
-			storeUser: user.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog),
-			user: coremodel.User{
+			name: testName + " error creating user invalid field null",
+			user: user.User{
 				FirstName: "FistName\000",
 				LastName:  faker.Name().LastName() + "_" + testName,
 				Email:     faker.Internet().Email(),
@@ -102,23 +103,7 @@ func TestCoreUser_Create(t *testing.T) {
 				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
 				Company:   faker.Company().Name(),
 			},
-			isError: true,
-		},
-		{
-			name:      "mock error in row affected",
-			storeUser: user.StoreUser{},
-			init: func(store *mocks.StoreUser) {
-				store.On("InsertUser", context.TODO(), mock.AnythingOfType("user.User")).Return(errors.ErrRowAffected)
-			},
-			user: coremodel.User{
-				FirstName: faker.Name().FirstName() + "_" + testName,
-				LastName:  faker.Name().LastName() + "_" + testName,
-				Email:     faker.Internet().Email(),
-				Password:  faker.Internet().Password(8, 64),
-				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
-				Company:   faker.Company().Name(),
-			},
-			isError: true,
+			expectedError: errorssys.ErrUserInvalidEncoding,
 		},
 	}
 
@@ -128,34 +113,84 @@ func TestCoreUser_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var coreUser coremodel.CoreUser
+			userModel, err := coreUser.Create(context.TODO(), tt.user)
+			assert.Equal(t, true, errors.Is(err, tt.expectedError))
 
-			if tt.storeUser == (user.StoreUser{}) {
-				storeUser := mocks.NewStoreUser(t)
-				tt.init(storeUser)
-
-				coreUser = coremodel.NewCoreUser(storeUser)
+			if tt.expectedError == nil {
+				assert.NotEmpty(t, userModel)
 			}
 
-			if tt.storeUser != (user.StoreUser{}) {
-				coreUser = coremodel.NewCoreUser(&tt.storeUser)
+			if tt.expectedError != nil {
+				assert.Empty(t, userModel)
 			}
+		})
+	}
 
-			newUser, err := coreUser.Create(context.TODO(), tt.user)
+	testsMock := []struct {
+		name          string
+		init          func(storeUser *mocks.StoreUser)
+		user          user.User
+		expectedError error
+	}{
+		{
+			name: testName + " mock error in row affected",
+			init: func(storeUser *mocks.StoreUser) {
+				storeUser.On("InsertUser", context.TODO(), mock.AnythingOfType("user.User")).Return(errorssys.ErrPsqlRowAffected)
+			},
+			user: user.User{
+				FirstName: faker.Name().FirstName() + "_" + testName,
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrPsqlRowAffected,
+		},
+		{
+			name: testName + " mock error in unified column",
+			init: func(storeUser *mocks.StoreUser) {
+				storeUser.On("InsertUser", context.TODO(), mock.AnythingOfType("user.User")).Return(errorssys.ErrUserUndefinedColumn)
+			},
+			user: user.User{
+				FirstName: faker.Name().FirstName() + "_" + testName,
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrUserUndefinedColumn,
+		},
+	}
 
-			if tt.isError {
-				assert.Error(t, err)
-			}
+	for _, tt := range testsMock {
+		tt := tt
 
-			if !tt.isError {
-				assert.Equal(t, nil, err)
-				assert.NotEmpty(t, newUser)
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			storeUser := mocks.NewStoreUser(t)
+			tt.init(storeUser)
+
+			coreUser := user.NewCoreUser(storeUser)
+
+			userModel, err := coreUser.Create(context.TODO(), tt.user)
+			assert.Equal(t, true, errors.Is(err, tt.expectedError))
+
+			if tt.expectedError == nil {
+				assert.NotEmpty(t, userModel)
 			}
 		})
 	}
 
 	t.Cleanup(func() {
-		defer docker.StopContainer(container.ID)
-		defer os.RemoveAll("new_schema")
+		defer func(id string) {
+			require.NoError(t, docker.StopContainer(id))
+		}(container.ID)
+
+		defer func() {
+			require.NoError(t, os.RemoveAll("new_schema"))
+		}()
 	})
 }

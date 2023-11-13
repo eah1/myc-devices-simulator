@@ -2,9 +2,12 @@ package user_test
 
 import (
 	"context"
+	"errors"
+	"myc-devices-simulator/business/core/email"
 	core "myc-devices-simulator/business/core/user"
 	"myc-devices-simulator/business/db/databasehandler"
 	store "myc-devices-simulator/business/repository/store/user"
+	errorssys "myc-devices-simulator/business/sys/errors"
 	"myc-devices-simulator/business/usecase/user"
 	"myc-devices-simulator/business/usecase/user/mocks"
 	"myc-devices-simulator/foundation/docker"
@@ -13,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"syreclabs.com/go/faker"
 )
@@ -28,8 +32,14 @@ func TestUCUser_Execute(t *testing.T) {
 	// Create DB container
 	container := test.InitDockerContainerDatabase(t, testName)
 
+	// Create config.
+	config := test.InitConfig(container.Host)
+
 	// Create session database.
-	database := test.InitDatabase(t, test.InitConfig(container.Host), newLog)
+	database := test.InitDatabase(t, config, newLog)
+
+	// Create email config.
+	emailConfig := test.InitEmailConfig(t, config)
 
 	// Create a user store.
 	storeUser := store.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog)
@@ -37,18 +47,18 @@ func TestUCUser_Execute(t *testing.T) {
 	// Create a user core.
 	coreUser := core.NewCoreUser(&storeUser)
 
+	coreEmail := email.NewService(emailConfig, config.SMTPFrom, newLog, config)
+
 	// Create a use case register user.
-	ucUserRegister := user.NewUCUserRegister(&coreUser)
+	ucUserRegister := user.NewUCUserRegister(&coreUser, &coreEmail)
 
 	tests := []struct {
 		name          string
-		init          func(coreUser *mocks.CoreUser)
 		userRegister  user.RegisterUseCase
-		expectedError bool
+		expectedError error
 	}{
 		{
 			name: testName + " success user register",
-			init: func(coreUser *mocks.CoreUser) {},
 			userRegister: user.RegisterUseCase{
 				FirstName: faker.Name().FirstName() + "_" + testName,
 				LastName:  faker.Name().LastName() + "_" + testName,
@@ -57,11 +67,10 @@ func TestUCUser_Execute(t *testing.T) {
 				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
 				Company:   faker.Company().Name(),
 			},
-			expectedError: false,
+			expectedError: nil,
 		},
 		{
 			name: testName + " duplicate user register",
-			init: func(coreUser *mocks.CoreUser) {},
 			userRegister: func(t *testing.T) user.RegisterUseCase {
 				newUserRegister := user.RegisterUseCase{
 					FirstName: faker.Name().FirstName() + "_" + testName,
@@ -78,11 +87,10 @@ func TestUCUser_Execute(t *testing.T) {
 
 				return newUserRegister
 			}(t),
-			expectedError: true,
+			expectedError: errorssys.ErrUserDupKeyEmail,
 		},
 		{
 			name: testName + " wrong language is invalid",
-			init: func(coreUser *mocks.CoreUser) {},
 			userRegister: user.RegisterUseCase{
 				FirstName: faker.Name().FirstName() + "_" + testName,
 				LastName:  faker.Name().LastName() + "_" + testName,
@@ -91,7 +99,19 @@ func TestUCUser_Execute(t *testing.T) {
 				Language:  faker.RandomString(2),
 				Company:   faker.Company().Name(),
 			},
-			expectedError: true,
+			expectedError: errorssys.ErrValidatorInvalidCoreModel,
+		},
+		{
+			name: testName + " wrong field is null",
+			userRegister: user.RegisterUseCase{
+				FirstName: "FistName\000",
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrUserInvalidEncoding,
 		},
 	}
 
@@ -100,17 +120,68 @@ func TestUCUser_Execute(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			tt.init(nil)
 
 			err := ucUserRegister.Execute(context.TODO(), tt.userRegister)
+			assert.Equal(t, true, errors.Is(err, tt.expectedError))
+		})
+	}
 
-			if tt.expectedError {
-				assert.Error(t, err)
-			}
+	testsMock := []struct {
+		name          string
+		init          func(coreUser *mocks.CoreUser, emailManager *mocks.EmailManager)
+		userRegister  user.RegisterUseCase
+		expectedError error
+	}{
+		{
+			name: testName + " mock error in generate hash password",
+			init: func(coreUser *mocks.CoreUser, emailManager *mocks.EmailManager) {
+				coreUser.On("Create", context.TODO(), mock.AnythingOfType("user.User")).Return(core.User{}, errorssys.ErrGeneratePassHash)
+			},
+			userRegister: user.RegisterUseCase{
+				FirstName: faker.Name().FirstName() + "_" + testName,
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrGeneratePassHash,
+		},
+		{
+			name: testName + " mock error in send email",
+			init: func(coreUser *mocks.CoreUser, emailManager *mocks.EmailManager) {
+				coreUser.On("Create", context.TODO(), mock.AnythingOfType("user.User")).Return(core.User{
+					Email:    faker.Internet().Email(),
+					Language: faker.RandomChoice([]string{"en", "es", "fr", "pt"})}, nil)
+				emailManager.On("SendEmailBody", mock.AnythingOfType("bytes.Buffer"), mock.AnythingOfType("string"),
+					mock.AnythingOfType("string"), mock.AnythingOfType("[]string")).Return(errorssys.ErrEmailSend)
+			},
+			userRegister: user.RegisterUseCase{
+				FirstName: faker.Name().FirstName() + "_" + testName,
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrEmailSend,
+		},
+	}
 
-			if !tt.expectedError {
-				assert.Equal(t, nil, err)
-			}
+	for _, tt := range testsMock {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			coreUser := mocks.NewCoreUser(t)
+			emailManager := mocks.NewEmailManager(t)
+			tt.init(coreUser, emailManager)
+
+			ucUserRegister := user.NewUCUserRegister(coreUser, emailManager)
+
+			err := ucUserRegister.Execute(context.TODO(), tt.userRegister)
+			assert.Equal(t, true, errors.Is(err, tt.expectedError))
 		})
 	}
 

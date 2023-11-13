@@ -1,11 +1,15 @@
 // Package user to validation entity and call layer store.
 package user
 
-import "myc-devices-simulator/business/repository/store/user"
+import (
+	"myc-devices-simulator/business/repository/store/user"
+
+	"github.com/google/uuid"
+)
 
 // User represents the structure of the core.
 type User struct {
-	ID        string
+	ID        uuid.UUID
 	FirstName string
 	LastName  string
 	Email     string

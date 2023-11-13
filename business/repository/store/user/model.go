@@ -1,11 +1,15 @@
 // Package user call database layer.
 package user
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // User represents the structure of the database.
 type User struct {
-	ID        string    `db:"pk not null 'id'"`
+	ID        uuid.UUID `db:"pk not null 'id'"`
 	FirstName string    `db:"first_name"`
 	LastName  string    `db:"last_name"`
 	Email     string    `db:"not null unique email"`

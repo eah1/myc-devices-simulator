@@ -5,9 +5,10 @@ import (
 	"context"
 	"fmt"
 	"myc-devices-simulator/business/db"
-	"myc-devices-simulator/business/db/errors"
 	errorssys "myc-devices-simulator/business/sys/errors"
 
+	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -29,26 +30,61 @@ func NewUserStore(database db.SQLGbc, log *zap.SugaredLogger) StoreUser {
 }
 
 // InsertUser insert new user into database.
-func (store *StoreUser) InsertUser(_ context.Context, user User) error {
+func (store *StoreUser) InsertUser(ctx context.Context, user User) error {
 	prepare, err := store.db.Prepare(InsertUser)
 	if err != nil {
-		return fmt.Errorf("store.user.InsertUser.Prepare: %w", errors.WrapperError(store.log, err))
+		return fmt.Errorf("store.user.InsertUser.Prepare(%v) err: %w: - mycError: %w",
+			InsertUser, err, errorssys.ErrPsqlPrepare)
 	}
 
-	res, err := prepare.Exec(user.ID, user.FirstName, user.LastName,
+	res, err := prepare.ExecContext(ctx, user.ID, user.FirstName, user.LastName,
 		user.Email, user.Password, user.Language, user.Company)
 	if err != nil {
-		return fmt.Errorf("store.user.InsertUser.Exec: %w", errors.WrapperError(store.log, err))
+		return fmt.Errorf("store.user.InsertUser.Exec(%v): %w", user, store.translateSQLError(err))
 	}
 
 	affected, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("store.user.InsertUser.RowsAffected: %w", errors.WrapperError(store.log, err))
+		return fmt.Errorf("store.user.InsertUser.RowsAffected: %w", store.translateSQLError(err))
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("store.user.InsertUser: %w", errorssys.ErrRowAffected)
+		return fmt.Errorf("store.user.InsertUser: %w", errorssys.ErrPsqlRowAffected)
 	}
 
 	return nil
+}
+
+// translateSQLError translate error in SQL object to error go.
+//
+//nolint:cyclop
+func (store *StoreUser) translateSQLError(err error) error {
+	var errorPQ *pq.Error
+
+	switch {
+	case errors.As(err, &errorPQ):
+		switch errorPQ.Code {
+		case "22P02":
+			return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserInvalidInputSyntax)
+		case "22021":
+			return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserInvalidEncoding)
+		case "23503":
+			return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserForeignKeyViolation)
+		case "23505":
+			switch errorPQ.Constraint {
+			case "users_email_key":
+				return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserDupKeyEmail)
+			case "users_pkey":
+				return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserDupKeyID)
+			default:
+				return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserDupKeyOther)
+			}
+		case "42703":
+			return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserUndefinedColumn)
+		default:
+			return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserQuery)
+		}
+	default:
+		return fmt.Errorf("db.translateSqlError(%w) - mycError: {%w}", err, errorssys.ErrUserQuery)
+	}
 }
