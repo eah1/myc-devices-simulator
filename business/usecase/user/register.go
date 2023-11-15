@@ -32,7 +32,7 @@ func (uc UCUserRegister) Execute(ctx context.Context, registerUser RegisterUseCa
 
 	body, err := template.Render(user.Language, "account-validation.html", struct {
 		Email, ValidationURI string
-	}{Email: user.Email, ValidationURI: ""})
+	}{Email: user.Email, ValidationURI: user.ValidationToken})
 	if err != nil {
 		return fmt.Errorf("usecase.user.Execute.Render(-) - error: {%w}", err)
 	}

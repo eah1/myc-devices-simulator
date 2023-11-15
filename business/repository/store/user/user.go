@@ -12,8 +12,22 @@ import (
 	"go.uber.org/zap"
 )
 
-const InsertUser = "INSERT INTO users (id, first_name, last_name, email, password, language, company) VALUES " +
-	"($1, $2, $3, $4, $5, $6, $7)"
+const (
+	InsertUser = `
+		INSERT INTO users (id, first_name, last_name, email, password, language, company) 
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	UpdateUser = `
+		UPDATE users  
+			SET 
+			    first_name = $2, 
+			    last_name = $3, 
+			    password = $4, 
+			    language = $5, 
+			    company = $6, 
+			    validation_token = $7, 
+			    validated = $8
+			WHERE id = $1`
+)
 
 // StoreUser store user to call database.
 type StoreUser struct {
@@ -50,6 +64,32 @@ func (store *StoreUser) InsertUser(ctx context.Context, user User) error {
 
 	if affected == 0 {
 		return fmt.Errorf("store.user.InsertUser: %w", errorssys.ErrPsqlRowAffected)
+	}
+
+	return nil
+}
+
+// UpdateUser update user into database.
+func (store *StoreUser) UpdateUser(ctx context.Context, user User) error {
+	prepare, err := store.db.Prepare(UpdateUser)
+	if err != nil {
+		return fmt.Errorf("store.user.UpdateUser.Prepare(%v) err: %w: - mycError: %w",
+			UpdateUser, err, errorssys.ErrPsqlPrepare)
+	}
+
+	res, err := prepare.ExecContext(ctx, user.ID, user.FirstName, user.LastName, user.Password,
+		user.Language, user.Company, user.ValidationToken, user.Validated)
+	if err != nil {
+		return fmt.Errorf("store.user.UpdateUser.Exec(%v): %w", user, store.translateSQLError(err))
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store.user.UpdateUser.RowsAffected: %w", store.translateSQLError(err))
+	}
+
+	if affected == 0 {
+		return fmt.Errorf("store.user.UpdateUser: %w", errorssys.ErrPsqlRowAffected)
 	}
 
 	return nil

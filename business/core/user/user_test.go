@@ -162,6 +162,38 @@ func TestCoreUser_Create(t *testing.T) {
 			},
 			expectedError: errorssys.ErrUserUndefinedColumn,
 		},
+		{
+			name: testName + " mock error in row affected in update user",
+			init: func(storeUser *mocks.StoreUser) {
+				storeUser.On("InsertUser", context.TODO(), mock.AnythingOfType("user.User")).Return(nil)
+				storeUser.On("UpdateUser", context.TODO(), mock.AnythingOfType("user.User")).Return(errorssys.ErrPsqlRowAffected)
+			},
+			user: user.User{
+				FirstName: faker.Name().FirstName() + "_" + testName,
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrPsqlRowAffected,
+		},
+		{
+			name: testName + " mock error in unified column in update user",
+			init: func(storeUser *mocks.StoreUser) {
+				storeUser.On("InsertUser", context.TODO(), mock.AnythingOfType("user.User")).Return(nil)
+				storeUser.On("UpdateUser", context.TODO(), mock.AnythingOfType("user.User")).Return(errorssys.ErrUserUndefinedColumn)
+			},
+			user: user.User{
+				FirstName: faker.Name().FirstName() + "_" + testName,
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrUserUndefinedColumn,
+		},
 	}
 
 	for _, tt := range testsMock {

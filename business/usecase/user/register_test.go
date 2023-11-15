@@ -148,6 +148,38 @@ func TestUCUser_Execute(t *testing.T) {
 			expectedError: errorssys.ErrGeneratePassHash,
 		},
 		{
+			name: testName + " mock error in generate token activation",
+			init: func(coreUser *mocks.CoreUser, emailManager *mocks.EmailManager) {
+				coreUser.On("Create", context.TODO(), mock.AnythingOfType("user.User")).Return(core.User{}, errorssys.ErrTokenGenerating)
+			},
+			userRegister: user.RegisterUseCase{
+				FirstName: faker.Name().FirstName() + "_" + testName,
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrTokenGenerating,
+		},
+		{
+			name: testName + " mock error open template",
+			init: func(coreUser *mocks.CoreUser, emailManager *mocks.EmailManager) {
+				coreUser.On("Create", context.TODO(), mock.AnythingOfType("user.User")).Return(core.User{
+					Email:    faker.Internet().Email(),
+					Language: faker.RandomString(2)}, nil)
+			},
+			userRegister: user.RegisterUseCase{
+				FirstName: faker.Name().FirstName() + "_" + testName,
+				LastName:  faker.Name().LastName() + "_" + testName,
+				Email:     faker.Internet().Email(),
+				Password:  faker.Internet().Password(8, 64),
+				Language:  faker.RandomChoice([]string{"en", "es", "fr", "pt"}),
+				Company:   faker.Company().Name(),
+			},
+			expectedError: errorssys.ErrEmailReadFileTemplate,
+		},
+		{
 			name: testName + " mock error in send email",
 			init: func(coreUser *mocks.CoreUser, emailManager *mocks.EmailManager) {
 				coreUser.On("Create", context.TODO(), mock.AnythingOfType("user.User")).Return(core.User{

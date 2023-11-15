@@ -10,6 +10,7 @@ import (
 	errorssys "myc-devices-simulator/business/sys/errors"
 	"myc-devices-simulator/foundation/docker"
 	"myc-devices-simulator/foundation/test"
+	"myc-devices-simulator/foundation/test/store"
 	"os"
 	"testing"
 
@@ -178,6 +179,118 @@ func TestUserStore_InsertUser(t *testing.T) {
 			storeUser := user.NewUserStore(db, newLog)
 
 			err := storeUser.InsertUser(context.TODO(), tt.user)
+			assert.Equal(t, true, errors.Is(err, tt.expectedError))
+		})
+	}
+
+	t.Cleanup(func() {
+		defer func(id string) {
+			require.NoError(t, docker.StopContainer(id))
+		}(container.ID)
+
+		defer func() {
+			require.NoError(t, os.RemoveAll("new_schema"))
+		}()
+	})
+}
+
+func TestStoreUser_UpdateUser(t *testing.T) {
+	t.Parallel()
+
+	testName := "store-user-update"
+
+	// Create logger.
+	newLog := test.InitLogger(t, "t-"+testName)
+
+	// Create DB container
+	container := test.InitDockerContainerDatabase(t, testName)
+
+	// Create session database.
+	database := test.InitDatabase(t, test.InitConfig(container.Host), newLog)
+
+	// Create a user store.
+	storeUser := user.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog)
+
+	// Create user.
+	newUser := store.NewUser(t, testName)
+	require.NoError(t, storeUser.InsertUser(context.TODO(), newUser))
+
+	tests := []struct {
+		name          string
+		user          user.User
+		expectedError error
+	}{
+		{
+			name:          testName + " success update user",
+			user:          newUser.SetLasName(faker.Name().FirstName() + "_" + testName),
+			expectedError: nil,
+		},
+		{
+			name:          testName + " success update user",
+			user:          newUser.SetFirstName(faker.Name().FirstName() + "_" + testName),
+			expectedError: nil,
+		},
+		{
+			name:          testName + " success update user",
+			user:          newUser.SetLanguage(faker.RandomChoice([]string{"en", "es", "fr", "pt"})),
+			expectedError: nil,
+		},
+		{
+			name:          testName + " null (\000) in field",
+			user:          newUser.SetFirstName("\000"),
+			expectedError: errorssys.ErrUserInvalidEncoding,
+		},
+		{
+			name:          testName + " error creating user invalid language",
+			user:          newUser.SetLanguage(faker.RandomString(2)),
+			expectedError: errorssys.ErrUserInvalidInputSyntax,
+		},
+		{
+			name:          testName + " error update user not exist",
+			user:          newUser.SetID(uuid.New()).SetLanguage(faker.RandomChoice([]string{"en", "es", "fr", "pt"})),
+			expectedError: errorssys.ErrPsqlRowAffected,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := storeUser.UpdateUser(context.TODO(), tt.user)
+			assert.Equal(t, true, errors.Is(err, tt.expectedError))
+		})
+	}
+
+	testsMock := []struct {
+		name          string
+		init          func(db *mocks.SQLGbc)
+		user          user.User
+		expectedError error
+	}{
+		{
+			name: testName + " error in prepare method",
+			init: func(db *mocks.SQLGbc) {
+				db.On("Prepare", mock.AnythingOfType("string")).Return(nil, errors.New("error Prepare"))
+			},
+			user:          newUser,
+			expectedError: errorssys.ErrPsqlPrepare,
+		},
+	}
+
+	for _, tt := range testsMock {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			db := mocks.NewSQLGbc(t)
+			tt.init(db)
+
+			storeUser := user.NewUserStore(db, newLog)
+
+			err := storeUser.UpdateUser(context.TODO(), tt.user)
 			assert.Equal(t, true, errors.Is(err, tt.expectedError))
 		})
 	}
