@@ -16,5 +16,7 @@ var (
 	ErrEmailSend             = errors.New("error send email")
 
 	ErrGeneratePassHash          = errors.New("generate password hash failed")
+	ErrTokenGenerating           = errors.New("error generating token")
+	ErrTokenNull                 = errors.New("token generate is null")
 	ErrValidatorInvalidCoreModel = errors.New("invalid core model")
 )

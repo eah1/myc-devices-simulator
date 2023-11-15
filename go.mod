@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/jhillyerd/enmime v1.0.1
 	github.com/lib/pq v1.10.9
+	github.com/m1/go-generate-password v0.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose/v3 v3.14.0
 	github.com/stretchr/testify v1.8.4
