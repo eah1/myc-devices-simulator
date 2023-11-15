@@ -2,6 +2,11 @@
 package config
 
 type Config struct {
+	Host           string
+	HostName       string
+	Port           string
+	BaseURL        string
+	ServerURI      string
 	DBPostgres     string
 	DBMaxIdleConns int
 	DBMaxOpenConns int
