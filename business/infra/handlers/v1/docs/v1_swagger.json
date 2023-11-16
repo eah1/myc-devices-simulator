@@ -1,0 +1,18 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Devices simulator documentation API V1.",
+        "title": "Swagger MYC-DEVICES-SIMULATOR API V1",
+        "contact": {},
+        "version": "1.0"
+    },
+    "basePath": "/",
+    "paths": {},
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "name": "Authorization.",
+            "in": "header"
+        }
+    }
+}

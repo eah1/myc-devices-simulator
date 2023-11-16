@@ -38,7 +38,7 @@ func TestCoreUser_Create(t *testing.T) {
 	storeUser := store.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog)
 
 	// Create a user core.
-	coreUser := user.NewCoreUser(&storeUser)
+	coreUser := user.NewUserCore(&storeUser)
 
 	tests := []struct {
 		name          string
@@ -205,7 +205,7 @@ func TestCoreUser_Create(t *testing.T) {
 			storeUser := mocks.NewStoreUser(t)
 			tt.init(storeUser)
 
-			coreUser := user.NewCoreUser(storeUser)
+			coreUser := user.NewUserCore(storeUser)
 
 			userModel, err := coreUser.Create(context.TODO(), tt.user)
 			assert.Equal(t, true, errors.Is(err, tt.expectedError))

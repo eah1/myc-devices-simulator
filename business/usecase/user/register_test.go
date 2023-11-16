@@ -45,9 +45,9 @@ func TestUCUser_Execute(t *testing.T) {
 	storeUser := store.NewUserStore(&databasehandler.SQLDBTx{DB: database}, newLog)
 
 	// Create a user core.
-	coreUser := core.NewCoreUser(&storeUser)
+	coreUser := core.NewUserCore(&storeUser)
 
-	coreEmail := email.NewService(emailConfig, config.SMTPFrom, newLog, config)
+	coreEmail := email.NewEmailCore(emailConfig, config.SMTPFrom, newLog, config)
 
 	// Create a use case register user.
 	ucUserRegister := user.NewUCUserRegister(&coreUser, &coreEmail)

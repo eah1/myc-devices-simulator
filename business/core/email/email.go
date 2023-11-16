@@ -14,33 +14,33 @@ import (
 
 var regex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 
-// Service struct to send emails.
-type Service struct {
+// EmailCore struct to send emails.
+type EmailCore struct {
 	sender   *enmime.SMTPSender
 	smtpFrom string
 	log      *zap.SugaredLogger
 	conf     config.Config
 }
 
-// NewService create a new email service struct.
-func NewService(emailSender *enmime.SMTPSender, smtpFrom string, log *zap.SugaredLogger, conf config.Config) Service {
-	return Service{sender: emailSender, smtpFrom: smtpFrom, log: log, conf: conf}
+// NewEmailCore create a new email service struct.
+func NewEmailCore(emailSender *enmime.SMTPSender, smtpFrom string, log *zap.SugaredLogger, conf config.Config) EmailCore {
+	return EmailCore{sender: emailSender, smtpFrom: smtpFrom, log: log, conf: conf}
 }
 
 // SendEmailBody email not contend subjects fields.
-func (service Service) SendEmailBody(body bytes.Buffer, subject, tag string, recipient []string) error {
+func (core EmailCore) SendEmailBody(body bytes.Buffer, subject, tag string, recipient []string) error {
 	if body.Len() == 0 {
 		return fmt.Errorf("core.email.SendEmailBody(-) - error: invalid body - mycError: {%w}", errorssys.ErrEmailSend)
 	}
 
 	master := enmime.Builder().
-		From("CIRCUTOR", service.smtpFrom).
+		From("CIRCUTOR", core.smtpFrom).
 		Subject(subject).
-		HTML(body.Bytes()).Header("X-PM-Tag", tag).Header("X-PM-Metadata-env", service.conf.Environment)
+		HTML(body.Bytes()).Header("X-PM-Tag", tag).Header("X-PM-Metadata-env", core.conf.Environment)
 
 	for _, emailAddress := range recipient {
 		if !isValidEmail(emailAddress) {
-			service.log.Warnw(fmt.Sprintf(
+			core.log.Warnw(fmt.Sprintf(
 				"core.email.SendEmailBody.isValidEmail(-) - warning: invalid email - mycError: {%s}", errorssys.ErrEmailSend))
 
 			continue
@@ -48,7 +48,7 @@ func (service Service) SendEmailBody(body bytes.Buffer, subject, tag string, rec
 
 		msg := master.To(emailAddress, emailAddress)
 
-		if err := msg.Send(service.sender); err != nil {
+		if err := msg.Send(core.sender); err != nil {
 			return fmt.Errorf("core.email.SendEmailBody.Send() - error: {%w} mycError: {%w}", err, errorssys.ErrEmailSend)
 		}
 	}

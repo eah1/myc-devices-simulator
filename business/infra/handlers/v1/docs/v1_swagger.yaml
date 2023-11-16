@@ -1,0 +1,13 @@
+basePath: /
+info:
+  contact: {}
+  description: Devices simulator documentation API V1.
+  title: Swagger MYC-DEVICES-SIMULATOR API V1
+  version: "1.0"
+paths: {}
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization.
+    type: apiKey
+swagger: "2.0"

@@ -26,8 +26,8 @@ type CoreUser struct {
 	storeUser StoreUser
 }
 
-// NewCoreUser construct a core user group.
-func NewCoreUser(storeUser StoreUser) CoreUser {
+// NewUserCore construct a core user group.
+func NewUserCore(storeUser StoreUser) CoreUser {
 	return CoreUser{
 		storeUser: storeUser,
 	}
