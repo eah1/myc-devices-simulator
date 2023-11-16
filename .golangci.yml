@@ -13,6 +13,8 @@ linters-settings:
       - Transaction
   dupl:
     threshold: 200
+  lll:
+    line-length: 140
   funlen:
     lines: 85
   tagliatelle:
