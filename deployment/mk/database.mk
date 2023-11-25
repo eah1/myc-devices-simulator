@@ -1,6 +1,7 @@
 
 SCHEMA_DIR := business/db/schema
 POSTGRES_URI := postgres://postgres:postgres@localhost:5430/postgres?sslmode=disable&timezone=utc
+POSTGRES_KIND_URI := postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable&timezone=utc
 
 start-postgres-test:
 	docker run --name postgresTest -e POSTGRES_PASSWORD=postgres -p 5430:5432  -d postgres
